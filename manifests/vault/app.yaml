@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consul-template-config
+data:
+  config.hcl: |
+    log_level = "info"
+
+    vault {
+      # Automatically renew the vault token
+      renew_token = true
+    }
+
+    template {
+      # Render app config template to be shared with app container
+      source = "/var/consul-template-config/index.html.ctmpl"
+      destination = "/var/app-config/index.html"
+    }
+
+    # exec {
+    #   # Send HUP signal to app process when rendered template changes
+    #   command = "/bin/sh -c \"kill -HUP $(pidof nginx)\""
+    # }
+  index.html.ctmpl: |
+    <html><body><pre>
+    consul-template will render the data below:
+    {{ with secret "secret/data/app/db" }}
+    username: {{ .Data.data.username }}
+    password: {{ .Data.data.password }}
+    updated: {{ .Data.data.updated }}
+    {{ end }}
+    </pre></body></html>
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app
+  labels:
+    run: app
+spec:
+  serviceAccountName: app
+  # Allows consul-template container to signal processes in app container
+  shareProcessNamespace: true
+  volumes:
+    # share vault token from vault initContainer to consul-template container
+    - name: vault
+      emptyDir: {}
+    # load consul-template config from configmap
+    - name: consul-template-config
+      configMap:
+        name: consul-template-config
+    # share rendered template from consul-template container to app container
+    - name: app-config
+      emptyDir: {}
+  initContainers:
+    # The init container is responsible for logging into vault and obtaining a
+    # token to share with the vault-secret-manager container. The token is
+    # shared via the volumeMount.
+    - name: vault-login
+      image: vault
+      command: [ "/bin/sh", "-c" ]
+      args:
+        - vault write -field=token auth/kubernetes/login role=app "jwt=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" > /var/vault/.vault-token
+      env:
+        - name: VAULT_ADDR
+          value: http://vault
+      volumeMounts:
+        - name: vault
+          mountPath: /var/vault
+  containers:
+    - name: consul-template
+      image: hashicorp/consul-template:alpine
+      args:
+        - -config=/var/consul-template-config/config.hcl
+      env:
+        - name: VAULT_ADDR
+          value: http://vault
+      ports:
+        - containerPort: 80
+          name: nginx
+      securityContext:
+        capabilities:
+          # Allows consul-template container to signal processes in app container
+          add: ['SYS_PTRACE']
+      volumeMounts:
+        # Consul-template finds vault token at ~/.vault-token by default.
+        - name: vault
+          mountPath: /home/consul-template/.vault-token
+          subPath: .vault-token
+        # Config for consul-template
+        - name: consul-template-config
+          mountPath: /var/consul-template-config
+        # Application config file rendered by consul-template
+        - name: app-config
+          mountPath: /var/app-config
+    - name: app
+      # The app container reads config rendered by the consul-template container.
+      image: nginx
+      volumeMounts:
+        - name: app-config
+          mountPath: /usr/share/nginx/html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+spec:
+  ports:
+    - port: 80
+      targetPort: nginx
+  selector:
+    run: app
+  type: NodePort
