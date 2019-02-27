@@ -50,7 +50,7 @@ spec:
                   sleep 3
                 done
                 vault token lookup
-                vault auth enable kubernetes;
+                vault auth enable kubernetes
                 vault write auth/kubernetes/config \
                   kubernetes_host=https://kubernetes \
                   kubernetes_ca_cert=@/run/secrets/kubernetes.io/serviceaccount/ca.crt \
