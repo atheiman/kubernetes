@@ -150,7 +150,7 @@ data:
     }
 
     template {
-      # Render app config template to be shared with app container
+      # Render app run.sh script that sets env vars and exec's app command
       source = "/consul-template-config/run.sh.ctmpl"
       destination = "/run.sh"
       error_on_missing_key = true
@@ -158,9 +158,6 @@ data:
 
     exec {
       command = "/bin/sh /run.sh"
-      env {
-        pristine = true
-      }
     }
   run.sh.ctmpl: |
     #!/bin/sh
@@ -176,7 +173,7 @@ data:
     # See https://github.com/hashicorp/consul-template#exec-mode for explanation
     # of this small shell wrapper.
     exec /bin/sh -c 'while true; do
-      echo "$(date +'%T') ${USERNAME} ${PASSWORD} ${UPDATED}" | tee -a /app.log
+      echo "$(date +'%T') ${USERNAME} ${PASSWORD} ${UPDATED}"
       sleep 5
     done'
 ---
@@ -215,17 +212,16 @@ spec:
           mountPath: /var/vault
   containers:
     - name: app
-      # TODO: use new "light" image suitable for use with Kubernetes PodShareProcessNamespace
-      # feature (runs as root with busybox built-in helpers). Use my fork until this is merged:
+      # TODO: use new "light" image suitable for use with Kubernetes
       # https://github.com/hashicorp/consul-template/pull/1191
       #image: hashicorp/consul-template:light
-      image: atheiman/consul-template
+      image: hashicorp/consul-template:alpine
       command: [ "/bin/sh", "-c" ]
       args:
         # Consul-template reading Vault token from ~/.vault-token was removed in 0.20
         # https://github.com/hashicorp/consul-template/pull/1182 so vault token has to be
         # passed to the command.
-        - /consul-template -config=/consul-template-config/config.hcl -vault-token="$(cat /.vault-token)"
+        - consul-template -config=/consul-template-config/config.hcl -vault-token="$(cat /.vault-token)"
       env:
         - name: VAULT_ADDR
           value: http://vault
