@@ -1,53 +1,38 @@
-#
-# VPC Resources
-#  * VPC
-#  * Subnets
-#  * Internet Gateway
-#  * Route Table
-#
+# https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
 
-resource "aws_vpc" "k8s" {
-  cidr_block = "10.0.0.0/16"
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+
+  name = "${local.resources-name}"
+  cidr = "10.0.0.0/22"
+
+  azs             = ["us-east-1c", "us-east-1d"]
+  private_subnets = ["10.0.0.0/24", "10.0.1.0/24"]
+  public_subnets  = ["10.0.2.0/24", "10.0.3.0/24"]
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
 
   tags = "${map(
+    "Terraform", "terraform-aws-modules/vpc/aws",
+    "Description", "k8s vpc ${local.resources-name}",
+  )}"
+
+  vpc_tags = "${map(
     "Name", "${local.resources-name}",
     "kubernetes.io/cluster/${var.cluster-name}", "shared",
   )}"
-}
 
-resource "aws_subnet" "k8s" {
-  count = 2
-
-  availability_zone = "${data.aws_availability_zones.available.names[count.index]}"
-  cidr_block        = "10.0.${count.index}.0/24"
-  vpc_id            = "${aws_vpc.k8s.id}"
-
-  tags = "${map(
+  public_subnet_tags = "${map(
     "Name", "${local.resources-name}",
     "kubernetes.io/cluster/${var.cluster-name}", "shared",
+    "kubernetes.io/role/elb", "1",
   )}"
-}
 
-resource "aws_internet_gateway" "k8s" {
-  vpc_id = "${aws_vpc.k8s.id}"
-
-  tags = {
-    Name = "${local.resources-name}"
-  }
-}
-
-resource "aws_route_table" "k8s" {
-  vpc_id = "${aws_vpc.k8s.id}"
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.k8s.id}"
-  }
-}
-
-resource "aws_route_table_association" "k8s" {
-  count = 2
-
-  subnet_id      = "${aws_subnet.k8s.*.id[count.index]}"
-  route_table_id = "${aws_route_table.k8s.id}"
+  private_subnet_tags = "${map(
+    "Name", "${local.resources-name}",
+    "kubernetes.io/cluster/${var.cluster-name}", "shared",
+    "kubernetes.io/role/internal-elb", "1",
+  )}"
 }

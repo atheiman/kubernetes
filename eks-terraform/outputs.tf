@@ -14,7 +14,7 @@ aws eks update-kubeconfig --name "${aws_eks_cluster.k8s.id}" --alias "eks-${aws_
 kubectl version
 
 # Create basic cluster resources
-kubectl apply --recursive --filename=./manifests
+kubectl apply --recursive --filename=./generated-manifests
 
 # Wait for worker nodes to become ready
 kubectl get nodes

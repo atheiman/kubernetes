@@ -37,7 +37,7 @@ resource "aws_iam_role_policy_attachment" "k8s-masters-AmazonEKSServicePolicy" {
 resource "aws_security_group" "k8s-masters" {
   name        = "${local.resources-name}-masters"
   description = "Cluster communication with worker nodes"
-  vpc_id      = "${aws_vpc.k8s.id}"
+  vpc_id      = "${module.vpc.vpc_id}"
 
   egress {
     from_port   = 0
@@ -77,7 +77,7 @@ resource "aws_eks_cluster" "k8s" {
 
   vpc_config {
     security_group_ids = ["${aws_security_group.k8s-masters.id}"]
-    subnet_ids         = ["${aws_subnet.k8s.*.id}"]
+    subnet_ids         = ["${module.vpc.private_subnets}"]
   }
 
   depends_on = [
@@ -87,8 +87,9 @@ resource "aws_eks_cluster" "k8s" {
 }
 
 resource "local_file" "k8s-manifest-aws-auth-config-map" {
-  filename = "${path.module}/manifests/aws-auth-config-map.yaml"
-  content  = <<CONTENT
+  filename = "${path.module}/generated-manifests/aws-auth-config-map.yaml"
+
+  content = <<CONTENT
 apiVersion: v1
 kind: ConfigMap
 metadata:

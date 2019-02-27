@@ -49,7 +49,7 @@ resource "aws_iam_instance_profile" "k8s-nodes" {
 resource "aws_security_group" "k8s-nodes" {
   name        = "${local.resources-name}-nodes"
   description = "Security group for all nodes in the cluster"
-  vpc_id      = "${aws_vpc.k8s.id}"
+  vpc_id      = "${module.vpc.vpc_id}"
 
   egress {
     from_port   = 0
@@ -94,6 +94,7 @@ resource "aws_security_group_rule" "k8s-nodes-ingress-workstation-ssh" {
   type              = "ingress"
 }
 
+# This isn't very useful if worker nodes are deployed to private subnets
 resource "aws_security_group_rule" "k8s-nodes-ingress-workstation-node-port-services" {
   cidr_blocks       = ["${local.workstation-external-cidr}"]
   description       = "Allow workstation to reach k8s NodePort services"
@@ -155,7 +156,7 @@ resource "aws_autoscaling_group" "k8s" {
   max_size             = 2
   min_size             = 1
   name                 = "${local.resources-name}"
-  vpc_zone_identifier  = ["${aws_subnet.k8s.*.id}"]
+  vpc_zone_identifier  = ["${module.vpc.private_subnets}"]
 
   tag {
     key                 = "Name"
