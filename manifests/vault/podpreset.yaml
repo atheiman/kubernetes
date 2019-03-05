@@ -1,0 +1,122 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dwapi
+  labels:
+    run: dwapi
+  annotations:
+    vaultproject.io/vault-agent.hcl: |
+      pid_file = "/mnt/vault/vault-agent.pid"
+
+      auto_auth {
+        method "kubernetes" {
+          config = {
+            role = "app"
+          }
+        }
+
+        sink "file" {
+          config = {
+            path = "/mnt/vault/vault-token"
+          }
+        }
+      }
+spec:
+  serviceAccountName: app
+  volumes:
+    - name: podinfo
+      downwardAPI:
+        items:
+          - path: "annotations"
+            fieldRef:
+              fieldPath: metadata.annotations
+    - name: vault
+      emptyDir:
+        medium: Memory
+  initContainers:
+    - name: vault-agent-config
+      image: busybox
+      command: [ "/bin/sh", "-c" ]
+      args:
+        - |
+          vault_agent_config="/mnt/vault/vault-agent.hcl"
+          if [ -f /etc/podinfo/annotations ]; then
+            printf "$(egrep '^vaultproject.io/vault-agent.hcl=' /etc/podinfo/annotations |
+              sed 's?^vaultproject.io/vault-agent.hcl=??')" |
+              sed 's/^"//' |
+              sed 's/\\"/"/g' > "$vault_agent_config"
+            chmod 664 "$vault_agent_config"
+            echo "Successfully wrote Vault agent config:"
+            ls -alh "$vault_agent_config"
+            cat "$vault_agent_config"
+          else
+            echo "Could not write Vault agent config"
+            exit 1
+          fi
+      volumeMounts:
+        - name: podinfo
+          mountPath: /etc/podinfo
+          readOnly: false
+        - name: vault
+          mountPath: /mnt/vault
+  containers:
+    - name: vault-agent
+      image: vault
+      command: ["vault"]
+      args: ["agent", "-config=/mnt/vault/vault-agent.hcl"]
+      env:
+        - name: VAULT_ADDR
+          value: http://vault
+      volumeMounts:
+        - name: vault
+          mountPath: /mnt/vault
+    - name: app
+      image: vault
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          while true; do
+            export VAULT_TOKEN="$(cat /mnt/vault/vault-token)"
+            vault kv get -format=json secret/app/db
+            vault read -format=json database/creds/app
+            vault read -format=json database/config/app
+            sleep 10
+          done
+      env:
+        - name: VAULT_ADDR
+          value: http://vault
+      volumeMounts:
+        - name: vault
+          mountPath: /mnt/vault
+---
+apiVersion: settings.k8s.io/v1alpha1
+kind: PodPreset
+metadata:
+  name: vault-token
+spec:
+  selector:
+    matchLabels:
+      run: nginx
+  containers:
+    - name: vault-agent-config
+      image: busybox
+      command: [ "/bin/sh", "-c" ]
+      args:
+        - echo "Hello world"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-test
+  labels:
+    run: nginx
+spec:
+  containers:
+    - name: nginx
+      image: nginx

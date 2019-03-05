@@ -32,10 +32,20 @@ data:
   index.html.ctmpl: |
     <html><body><pre>
     consul-template will render the data below:
-    {{ with secret "secret/data/app/db" }}
-    username: {{ .Data.data.username }}
-    password: {{ .Data.data.password }}
-    updated: {{ .Data.data.updated }}
+    {{ with secret "secret/data/app" }}
+    vault secret secret/data/app:
+    .Data.data.random: {{ .Data.data.random }}
+    {{ end }}
+
+    {{ with secret "database/config/app" }}
+    vault secret database/config/app:
+    .Data.connection_details.connection_url: {{ .Data.connection_details.connection_url }}
+    {{ end }}
+
+    {{ with secret "database/creds/app" }}
+    vault secret database/creds/app:
+    .Data.username: {{ .Data.username }}
+    .Data.password: {{ .Data.password }}
     {{ end }}
     </pre></body></html>
 ---
@@ -80,17 +90,10 @@ spec:
           mountPath: /var/vault
   containers:
     - name: consul-template
-      # TODO: use new "light" image suitable for use with Kubernetes PodShareProcessNamespace
-      # feature (runs as root with busybox built-in helpers). Use my fork until this is merged:
-      # https://github.com/hashicorp/consul-template/pull/1191
-      #image: hashicorp/consul-template:light
-      image: atheiman/consul-template
+      image: hashicorp/consul-template:light
       command: [ "/bin/sh", "-c" ]
       args:
-        # Consul-template reading Vault token from ~/.vault-token was removed in 0.20
-        # https://github.com/hashicorp/consul-template/pull/1182 so vault token has to be
-        # passed to the command.
-        - /consul-template -config=/consul-template-config/config.hcl -vault-token="$(cat /.vault-token)"
+        - consul-template -config=/consul-template-config/config.hcl -vault-token="$(cat /.vault-token)"
       env:
         - name: VAULT_ADDR
           value: http://vault
@@ -164,16 +167,24 @@ data:
 
     set -eux
 
-    {{ with secret "secret/data/app/db" }}
-    export USERNAME="{{ .Data.data.username }}"
-    export PASSWORD="{{ .Data.data.password }}"
-    export UPDATED="{{ .Data.data.updated }}"
-    {{ end }}
-
     # See https://github.com/hashicorp/consul-template#exec-mode for explanation
     # of this small shell wrapper.
+
+    {{ with secret "secret/data/app" }}
+    export KV_SECRET="{{ .Data.data.random }}"
+    {{ end }}
+
+    {{ with secret "database/config/app" }}
+    export DB_CONNECTION_URL="{{ .Data.connection_details.connection_url }}"
+    {{ end }}
+
+    {{ with secret "database/creds/app" }}
+    export DB_USERNAME="{{ .Data.username }}"
+    export DB_PASSWORD="{{ .Data.password }}"
+    {{ end }}
+
     exec /bin/sh -c 'while true; do
-      echo "$(date +'%T') ${USERNAME} ${PASSWORD} ${UPDATED}"
+      echo "$(date +'%T') ${KV_SECRET} ${DB_CONNECTION_URL} ${DB_USERNAME} ${DB_PASSWORD}"
       sleep 5
     done'
 ---
@@ -212,10 +223,7 @@ spec:
           mountPath: /var/vault
   containers:
     - name: app
-      # TODO: use new "light" image suitable for use with Kubernetes
-      # https://github.com/hashicorp/consul-template/pull/1191
-      #image: hashicorp/consul-template:light
-      image: hashicorp/consul-template:alpine
+      image: hashicorp/consul-template:light
       command: [ "/bin/sh", "-c" ]
       args:
         # Consul-template reading Vault token from ~/.vault-token was removed in 0.20
