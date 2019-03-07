@@ -1,0 +1,43 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: jboss
+  name: jboss
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: jboss
+  template:
+    metadata:
+      labels:
+        run: jboss
+    spec:
+      containers:
+      - name: jboss
+        image: jboss:dev
+        args:
+          - "-b"
+          - "0.0.0.0"
+        ports:
+          - containerPort: 8080
+            name: jboss
+        # Use the image built with the minikube docker-env
+        imagePullPolicy: Never
+        # resources:
+        #   requests:
+        #     cpu: 0.5
+        #     memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jboss
+spec:
+  ports:
+    - port: 80
+      targetPort: jboss
+  selector:
+    run: jboss
+  type: NodePort
