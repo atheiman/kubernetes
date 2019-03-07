@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: lrtest
+  # namespace: lrtest
+  annotations:
+    applicable-strategy: "cluster-wide"
+    # creation-strategy: "per-project"
+    # static-content: "true"
+spec:
+  limits:
+  - type: Container
+    default:
+      # default "limits"
+      memory: 300Mi
+    defaultRequest:
+      # default "requests"
+      memory: 200Mi
+    type: Container
+    max:
+      memory: 400Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lrtest
+  namespace: default
+spec:
+  containers:
+  - name: limitandrequest
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
+    resources:
+      limits:
+        memory: 310Mi
+      requests:
+        memory: 210Mi
+  - name: limit
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
+    resources:
+      limits:
+        memory: 310Mi
+  - name: request
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
+    resources:
+      requests:
+        memory: 210Mi
+  - name: neither
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lrtest
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lrtest
+  namespace: lrtest
+spec:
+  containers:
+  - name: limitandrequest
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
+    resources:
+      limits:
+        memory: 310Mi
+      requests:
+        memory: 210Mi
+  - name: limit
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
+    resources:
+      limits:
+        memory: 310Mi
+  - name: request
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
+    resources:
+      requests:
+        memory: 210Mi
+  - name: neither
+    image: busybox
+    command: ['/bin/sh', '-c']
+    args:
+      - |
+        while true; do sleep 5; date; done
