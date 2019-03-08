@@ -126,7 +126,7 @@ resource "aws_iam_user_policy_attachment" "test-attach" {
 }
 
 resource "aws_iam_access_key" "alb-ingress-controller" {
-  user    = "${aws_iam_user.alb-ingress-controller.name}"
+  user = "${aws_iam_user.alb-ingress-controller.name}"
 }
 
 data "http" "alb-ingress-controller-rbac-role" {
