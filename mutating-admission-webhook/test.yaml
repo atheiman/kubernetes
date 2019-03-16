@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mwc-test
+  labels:
+    mutating-admission-webhook: enabled
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name:      pause
+  namespace: mwc-test
+  labels:
+    test: label
+spec:
+  containers:
+    - name:  pause
+      image: k8s.gcr.io/pause
+
