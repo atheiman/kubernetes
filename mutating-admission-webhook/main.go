@@ -71,7 +71,7 @@ func mutatePods(receivedAdmissionReview v1beta1.AdmissionReview) *v1beta1.Admiss
 	// We are not admitting pods, just mutating them, so set to true
 	reviewResponse.Allowed = true
 	// if the key exists
-	if val, ok := pod.ObjectMeta.Annotations["mwc-example.jasonrichardsmith.com.exclude"]; ok {
+	if val, ok := pod.ObjectMeta.Annotations["mutating-webhook.example.com/exclude"]; ok {
 		log.Info("annotation exists")
 		// if the key is true we will exclude
 		if val == "true" {
@@ -79,6 +79,7 @@ func mutatePods(receivedAdmissionReview v1beta1.AdmissionReview) *v1beta1.Admiss
 			return &reviewResponse
 		}
 	}
+	// a different patch has to be applied if there are labels on the pod already
 	if len(pod.ObjectMeta.Labels) > 0 {
 		reviewResponse.Patch = []byte(labelPatchExistingLabels)
 	} else {
