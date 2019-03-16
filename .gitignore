@@ -30,3 +30,6 @@ eks-terraform/generated-manifests/
 
 # JBoss zip from redhat.com
 jboss-*.zip
+
+# Go Dep
+vendor/
