@@ -1,10 +1,12 @@
 package main
 
 import (
-	"crypto/tls"
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
+    "crypto/tls"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+    "net/http/httputil"
 
 	log "github.com/Sirupsen/logrus"
 	"k8s.io/api/admission/v1beta1"
@@ -94,6 +96,12 @@ func mutatePods(receivedAdmissionReview v1beta1.AdmissionReview) *v1beta1.Admiss
 // This will just be a wrapper for the http request and response, e2e tests have a
 // better level of abstraction
 func serve(w http.ResponseWriter, r *http.Request) {
+    requestDump, err := httputil.DumpRequest(r, true)
+    if err != nil {
+      fmt.Println(err)
+    }
+    fmt.Println(string(requestDump))
+
 	var body []byte
 	if r.Body != nil {
 		if data, err := ioutil.ReadAll(r.Body); err == nil {
@@ -136,6 +144,17 @@ func serve(w http.ResponseWriter, r *http.Request) {
 	// to json and write to responsewriter
 	responseInBytes, err := json.Marshal(returnedAdmissionReview)
 	log.Info(string(responseInBytes))
+
+
+
+
+    responseDump, err := httputil.DumpResponse(responseInBytes, true)
+    if err != nil {
+      fmt.Println(err)
+    }
+    fmt.Println(string(responseDump))
+
+
 
 	if err != nil {
 		log.Error(err)

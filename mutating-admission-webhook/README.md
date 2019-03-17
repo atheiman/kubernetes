@@ -49,20 +49,33 @@ Launch a pod in a new namespace to see the mutating admission webhook apply a ne
 ```shell
 kubectl apply -f test.yaml
 # namespace/mwc-test created
-# pod/pause created
+# pod/has-labels created
+# pod/no-labels created
+# pod/excluded created
 kubectl get po -n mwc-test --show-labels
-# NAME    READY   STATUS    RESTARTS   AGE   LABELS
-# pause   1/1     Running   0          89s   test=label,thisisanewlabel=hello
+# NAME         READY   STATUS    RESTARTS   AGE   LABELS
+# excluded     1/1     Running   0          5s    <none>
+# has-labels   1/1     Running   0          6s    test=label,thisisanewlabel=hello
+# no-labels    1/1     Running   0          5s    thisisanewlabel=hello
 ```
 
 You can also see a log message from the mutating-admission-webhook pod:
 
 ```shell
 kubectl logs -n mutating-admission-webhook mutating-admission-webhook-5899cdb6-q5kqm
-# time="2019-03-16T20:33:17Z" level=info msg="adding label to pod"
-# time="2019-03-16T20:33:17Z" level=info msg="added patch [{\"op\":\"add\",\"path\":\"/metadata/labels/thisisanewlabel\", \"value\":\"hello\"}]"
-# time="2019-03-16T20:33:17Z" level=info msg="{\"response\":{\"uid\":\"bb0bab39-482a-11e9-8ed6-0800275d5ebf\",\"allowed\":true,\"patch\":\"W3sib3AiOiJhZGQiLCJwYXRoIjoiL21ldGFkYXRhL2xhYmVscy90aGlzaXNhbmV3bGFiZWwiLCAidmFsdWUiOiJoZWxsbyJ9XQ==\",\"patchType\":\"JSONPatch\"}}"
-# time="2019-03-16T20:33:17Z" level=info msg="Writing response"
+# time="2019-03-16T22:19:16Z" level=info msg="adding label to pod"
+# time="2019-03-16T22:19:16Z" level=info msg="added patch [{\"op\":\"add\",\"path\":\"/metadata/labels/thisisanewlabel\", \"value\":\"hello\"}]"
+# time="2019-03-16T22:19:16Z" level=info msg="{\"response\":{\"uid\":\"8989fbf9-4839-11e9-94c6-08002749fc69\",\"allowed\":true,\"patch\":\"W3sib3AiOiJhZGQiLCJwYXRoIjoiL21ldGFkYXRhL2xhYmVscy90aGlzaXNhbmV3bGFiZWwiLCAidmFsdWUiOiJoZWxsbyJ9XQ==\",\"patchType\":\"JSONPatch\"}}"
+# time="2019-03-16T22:19:16Z" level=info msg="Writing response"
+# time="2019-03-16T22:19:17Z" level=info msg="adding label to pod"
+# time="2019-03-16T22:19:17Z" level=info msg="added patch [{\"op\":\"add\",\"path\":\"/metadata/labels\", \"value\":{\"thisisanewlabel\":\"hello\"}}]"
+# time="2019-03-16T22:19:17Z" level=info msg="{\"response\":{\"uid\":\"8998522f-4839-11e9-94c6-08002749fc69\",\"allowed\":true,\"patch\":\"W3sib3AiOiJhZGQiLCJwYXRoIjoiL21ldGFkYXRhL2xhYmVscyIsICJ2YWx1ZSI6eyJ0aGlzaXNhbmV3bGFiZWwiOiJoZWxsbyJ9fV0=\",\"patchType\":\"JSONPatch\"}}"
+# time="2019-03-16T22:19:17Z" level=info msg="Writing response"
+# time="2019-03-16T22:19:17Z" level=info msg="adding label to pod"
+# time="2019-03-16T22:19:17Z" level=info msg="annotation exists"
+# time="2019-03-16T22:19:17Z" level=info msg="excluded due to annotation"
+# time="2019-03-16T22:19:17Z" level=info msg="{\"response\":{\"uid\":\"899dfea8-4839-11e9-94c6-08002749fc69\",\"allowed\":true}}"
+# time="2019-03-16T22:19:17Z" level=info msg="Writing response"
 ```
 
 ## Credits
